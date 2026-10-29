@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+  pull_request:
+
+jobs:
+  protocol-and-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build protocol
+        run: npm run build:protocol
+      - name: Protocol tests
+        run: npm run test:protocol
+      - name: E2E protocol simulation
+        run: npm run test:e2e
+      - name: Crypto interop vector
+        run: npm run test:crypto-interop
+      - name: UDP discovery simulation
+        run: npm run test:discovery
+      - name: Build desktop (bundle)
+        run: npm run build:desktop
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Setup Android SDK
+        run: bash scripts/setup-android-sdk.sh
+      - name: Android unit tests
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
+          cd android && ./gradlew test --no-daemon
+      - name: Assemble debug APK
+        run: bash scripts/build-android.sh
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk

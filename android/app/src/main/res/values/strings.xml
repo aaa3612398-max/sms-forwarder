@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">短信转发助手</string>
+    <string name="service_notification_title">短信转发运行中</string>
+    <string name="service_notification_text">正在将短信加密转发到已配对的电脑</string>
+    <string name="status_paired">已配对：%1$s:%2$d</string>
+    <string name="status_not_paired">未配对，请扫码连接电脑</string>
+    <string name="btn_scan_pair">扫码配对</string>
+    <string name="btn_start_service">启动转发服务</string>
+    <string name="permission_rationale">需要短信与通知权限才能接收并转发短信</string>
+    <string name="recent_forwards">最近转发</string>
+    <string name="empty_forwards">暂无转发记录</string>
+    <string name="forward_ok">成功</string>
+    <string name="forward_pending">排队中</string>
+    <string name="forward_failed">失败</string>
+    <string name="toolkit_title">互联工具箱</string>
+    <string name="btn_send_clipboard">发送剪贴板到电脑</string>
+    <string name="btn_send_file">选择文件发送到电脑</string>
+    <string name="enable_notification_mirror">镜像通知到电脑</string>
+    <string name="btn_notification_access">打开通知监听权限</string>
+    <string name="hint_blocked_packages">不镜像的应用包名（逗号分隔，如 com.tencent.mm）</string>
+    <string name="share_send_label">发送到电脑</string>
+    <string name="notification_listener_label">短信转发通知镜像</string>
+    <string name="clipboard_tile_label">发送剪贴板到电脑</string>
+</resources>
