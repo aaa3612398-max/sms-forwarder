@@ -12,4 +12,13 @@
     <string name="forward_ok">成功</string>
     <string name="forward_pending">排队中</string>
     <string name="forward_failed">失败</string>
+    <string name="toolkit_title">互联工具箱</string>
+    <string name="btn_send_clipboard">发送剪贴板到电脑</string>
+    <string name="btn_send_file">选择文件发送到电脑</string>
+    <string name="enable_notification_mirror">镜像通知到电脑</string>
+    <string name="btn_notification_access">打开通知监听权限</string>
+    <string name="hint_blocked_packages">不镜像的应用包名（逗号分隔，如 com.tencent.mm）</string>
+    <string name="share_send_label">发送到电脑</string>
+    <string name="notification_listener_label">短信转发通知镜像</string>
+    <string name="clipboard_tile_label">发送剪贴板到电脑</string>
 </resources>

@@ -188,3 +188,94 @@ code {
   font-family: ui-monospace, monospace;
   font-size: 13px;
 }
+
+.tab-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tab {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #cfd6df;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.toolkit {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 20px;
+}
+
+.toolkit h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.tool-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.tool-card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.tool-textarea,
+.tool-input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid #cfd6df;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.tool-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.dropzone {
+  border: 2px dashed #cfd6df;
+}
+
+.dropzone.drag-over {
+  border-color: #2563eb;
+  background: #eef4ff;
+}
+
+.mirror-list {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.sim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.linkish {
+  border: none;
+  background: none;
+  color: #2563eb;
+  cursor: pointer;
+  margin-right: 6px;
+}

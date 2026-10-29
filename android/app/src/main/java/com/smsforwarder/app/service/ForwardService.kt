@@ -12,9 +12,10 @@ import com.smsforwarder.app.data.ForwardLogStore
 import com.smsforwarder.app.data.ForwardStatus
 import com.smsforwarder.app.data.MessageQueueStore
 import com.smsforwarder.app.data.PairingStore
-import com.smsforwarder.app.net.MessageClient
+import com.smsforwarder.app.net.EventClient
 import com.smsforwarder.app.net.NetworkMonitor
 import com.smsforwarder.app.protocol.ProtocolCrypto
+import com.smsforwarder.app.toolkit.PhoneEventHandler
 import com.smsforwarder.app.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,17 +26,22 @@ import kotlinx.coroutines.launch
 
 class ForwardService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + Job())
-    private lateinit var client: MessageClient
+    private lateinit var eventClient: EventClient
+    private lateinit var phoneHandler: PhoneEventHandler
     private var networkMonitor: NetworkMonitor? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
-        client = MessageClient(this)
+        eventClient = EventClient(this)
+        phoneHandler = PhoneEventHandler(this, eventClient)
         startForeground(NOTIFICATION_ID, buildNotification())
         networkMonitor = NetworkMonitor(this) {
-            scope.launch { flushOnce() }
+            scope.launch {
+                flushOnce()
+                pollOutboxOnce()
+            }
         }.also { it.start() }
         scope.launch { drainLoop() }
     }
@@ -60,6 +66,7 @@ class ForwardService : Service() {
                 )
             }
             ACTION_FLUSH -> scope.launch { flushOnce() }
+            ACTION_POLL -> scope.launch { pollOutboxOnce() }
         }
         return START_STICKY
     }
@@ -84,7 +91,8 @@ class ForwardService : Service() {
     private suspend fun drainLoop() {
         while (scope.isActive) {
             flushOnce()
-            delay(15_000)
+            pollOutboxOnce()
+            delay(3000)
         }
     }
 
@@ -94,7 +102,7 @@ class ForwardService : Service() {
         while (true) {
             val pairing = PairingStore(this).load() ?: break
             val head = queue.peek() ?: break
-            val ok = runCatching { client.send(pairing, head) }.getOrDefault(false)
+            val ok = runCatching { phoneHandler.sendSmsPayload(pairing, head) }.getOrDefault(false)
             if (ok) {
                 log.updateStatus(head.id, ForwardStatus.OK)
                 queue.dequeueHead()
@@ -104,6 +112,21 @@ class ForwardService : Service() {
                 break
             }
         }
+    }
+
+    private suspend fun pollOutboxOnce() {
+        val pairing = PairingStore(this).load() ?: return
+        val items = eventClient.pollOutbox(pairing)
+        if (items.isEmpty()) return
+        val ack = mutableListOf<String>()
+        for (item in items) {
+            runCatching {
+                val event = ProtocolCrypto.decryptEvent(pairing.secret, item.envelope)
+                phoneHandler.handleFromDesktop(pairing, event)
+                ack.add(item.id)
+            }
+        }
+        eventClient.ackOutbox(pairing, ack)
     }
 
     private fun buildNotification(): Notification {
@@ -128,6 +151,7 @@ class ForwardService : Service() {
 
         const val ACTION_ENQUEUE = "com.smsforwarder.app.ENQUEUE"
         const val ACTION_FLUSH = "com.smsforwarder.app.FLUSH"
+        const val ACTION_POLL = "com.smsforwarder.app.POLL"
         const val ACTION_UI_REFRESH = "com.smsforwarder.app.UI_REFRESH"
 
         const val EXTRA_ID = "id"

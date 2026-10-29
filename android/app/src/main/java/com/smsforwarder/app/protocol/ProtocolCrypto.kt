@@ -62,27 +62,47 @@ object ProtocolCrypto {
         return okm
     }
 
-    fun encryptPayload(secretB64Url: String, payload: SmsPayload): WireEnvelope {
+    fun encryptEvent(secretB64Url: String, eventJson: JSONObject): WireEnvelope {
         val key = deriveKey(secretB64Url)
         val nonce = ByteArray(NONCE_LEN).also { java.security.SecureRandom().nextBytes(it) }
-        val plain = JSONObject().apply {
-            put("id", payload.id)
-            put("sender", payload.sender)
-            put("body", payload.body)
-            put("timestamp", payload.timestamp)
-            put("simSlot", payload.simSlot)
-        }.toString().toByteArray(Charsets.UTF_8)
-
+        val plain = eventJson.toString().toByteArray(Charsets.UTF_8)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val spec: AlgorithmParameterSpec = GCMParameterSpec(TAG_LEN, nonce)
         cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), spec)
         val encrypted = cipher.doFinal(plain)
-
         return WireEnvelope(
             v = PROTOCOL_VERSION,
             n = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce),
             c = Base64.getUrlEncoder().withoutPadding().encodeToString(encrypted),
         )
+    }
+
+    fun decryptEvent(secretB64Url: String, envelope: JSONObject): JSONObject {
+        val wire = WireEnvelope(
+            v = envelope.getInt("v"),
+            n = envelope.getString("n"),
+            c = envelope.getString("c"),
+        )
+        if (wire.v != PROTOCOL_VERSION) throw IllegalArgumentException("Bad version")
+        val key = deriveKey(secretB64Url)
+        val nonce = Base64.getUrlDecoder().decode(wire.n)
+        val combined = Base64.getUrlDecoder().decode(wire.c)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_LEN, nonce))
+        val plain = cipher.doFinal(combined)
+        return JSONObject(String(plain, Charsets.UTF_8))
+    }
+
+    fun encryptPayload(secretB64Url: String, payload: SmsPayload): WireEnvelope {
+        val event = JSONObject().apply {
+            put("type", "sms")
+            put("id", payload.id)
+            put("sender", payload.sender)
+            put("body", payload.body)
+            put("timestamp", payload.timestamp)
+            put("simSlot", payload.simSlot)
+        }
+        return encryptEvent(secretB64Url, event)
     }
 
     fun envelopeToJson(envelope: WireEnvelope): String =

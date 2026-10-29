@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import { useCallback, useEffect, useState } from 'react';
 import type { PairedPhoneRecord, SmsPayload } from '@sms-forwarder/protocol';
+import ToolkitPanel from './ToolkitPanel';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('zh-CN');
@@ -35,6 +36,7 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [thread, setThread] = useState<SmsPayload[]>([]);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'sms' | 'tools'>('sms');
 
   const refreshPairing = useCallback(async () => {
     const p = await window.smsForwarder.getPairing();
@@ -134,6 +136,14 @@ export default function App() {
       <aside className="sidebar">
         <header>
           <h1>短信转发助手</h1>
+          <div className="tab-row">
+            <button type="button" className={tab === 'sms' ? 'tab active' : 'tab'} onClick={() => setTab('sms')}>
+              短信
+            </button>
+            <button type="button" className={tab === 'tools' ? 'tab active' : 'tab'} onClick={() => setTab('tools')}>
+              工具箱
+            </button>
+          </div>
           <input
             className="search"
             placeholder="搜索号码或内容…"
@@ -211,6 +221,9 @@ export default function App() {
             </div>
           </div>
         </section>
+        {tab === 'tools' ? (
+          <ToolkitPanel />
+        ) : (
         <section className="messages">
           {!selected && <div className="empty">选择左侧发件人查看会话</div>}
           {selected &&
@@ -245,6 +258,7 @@ export default function App() {
               );
             })}
         </section>
+        )}
       </main>
     </div>
   );

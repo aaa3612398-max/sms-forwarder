@@ -1,4 +1,5 @@
 export * from './types.js';
+export * from './events.js';
 export * from './crypto.js';
 export * from './pairing.js';
 export * from './verification.js';
