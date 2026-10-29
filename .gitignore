@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+.DS_Store
+protocol/dist/
+desktop/dist/
+desktop/dist-electron/
+desktop/release/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.apk
+*.aab
+.idea/
