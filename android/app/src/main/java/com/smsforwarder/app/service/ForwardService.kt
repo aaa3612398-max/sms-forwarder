@@ -13,6 +13,7 @@ import com.smsforwarder.app.data.ForwardStatus
 import com.smsforwarder.app.data.MessageQueueStore
 import com.smsforwarder.app.data.PairingStore
 import com.smsforwarder.app.net.MessageClient
+import com.smsforwarder.app.net.NetworkMonitor
 import com.smsforwarder.app.protocol.ProtocolCrypto
 import com.smsforwarder.app.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -24,14 +25,24 @@ import kotlinx.coroutines.launch
 
 class ForwardService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + Job())
-    private val client = MessageClient()
+    private lateinit var client: MessageClient
+    private var networkMonitor: NetworkMonitor? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        client = MessageClient(this)
         startForeground(NOTIFICATION_ID, buildNotification())
+        networkMonitor = NetworkMonitor(this) {
+            scope.launch { flushOnce() }
+        }.also { it.start() }
         scope.launch { drainLoop() }
+    }
+
+    override fun onDestroy() {
+        networkMonitor?.stop()
+        super.onDestroy()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -78,10 +89,10 @@ class ForwardService : Service() {
     }
 
     private suspend fun flushOnce() {
-        val pairing = PairingStore(this).load() ?: return
         val queue = MessageQueueStore(this)
         val log = ForwardLogStore(this)
         while (true) {
+            val pairing = PairingStore(this).load() ?: break
             val head = queue.peek() ?: break
             val ok = runCatching { client.send(pairing, head) }.getOrDefault(false)
             if (ok) {

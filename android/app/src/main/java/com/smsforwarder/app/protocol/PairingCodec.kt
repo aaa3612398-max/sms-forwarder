@@ -6,6 +6,7 @@ data class PairingConfig(
     val host: String,
     val port: Int,
     val secret: String,
+    val desktopDeviceId: String,
 )
 
 object PairingCodec {
@@ -17,7 +18,9 @@ object PairingCodec {
         val host = data.getString("h")
         val port = data.getInt("p")
         val secret = data.getString("s")
+        val desktopId = data.optString("d", "")
         if (port !in 1..65535) throw IllegalArgumentException("Invalid port")
-        return PairingConfig(host, port, secret)
+        if (desktopId.isBlank()) throw IllegalArgumentException("Missing desktop device id")
+        return PairingConfig(host, port, secret, desktopId)
     }
 }

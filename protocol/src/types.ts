@@ -4,6 +4,15 @@ export interface PairingPayload {
   host: string;
   port: number;
   secret: string;
+  deviceId: string;
+  name?: string;
+}
+
+export interface PairedPhoneRecord {
+  deviceId: string;
+  name: string;
+  firstPairedAt: number;
+  lastSeenAt: number;
 }
 
 export interface SmsPayload {

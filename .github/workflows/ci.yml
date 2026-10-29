@@ -24,6 +24,8 @@ jobs:
         run: npm run test:e2e
       - name: Crypto interop vector
         run: npm run test:crypto-interop
+      - name: UDP discovery simulation
+        run: npm run test:discovery
       - name: Build desktop (bundle)
         run: npm run build:desktop
 

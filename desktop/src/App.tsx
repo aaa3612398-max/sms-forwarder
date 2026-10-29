@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { useCallback, useEffect, useState } from 'react';
-import type { SmsPayload } from '@sms-forwarder/protocol';
+import type { PairedPhoneRecord, SmsPayload } from '@sms-forwarder/protocol';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('zh-CN');
@@ -20,16 +20,33 @@ function extractCode(body: string): string | null {
 }
 
 export default function App() {
-  const [pairing, setPairing] = useState<{ host: string; port: number; pairingQr: string } | null>(
-    null,
-  );
+  const [pairing, setPairing] = useState<{
+    host: string;
+    port: number;
+    pairingQr: string;
+    deviceName: string;
+  } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
+  const [pairedPhones, setPairedPhones] = useState<PairedPhoneRecord[]>([]);
+  const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [senders, setSenders] = useState<
     { sender: string; lastTimestamp: number; count: number }[]
   >([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [thread, setThread] = useState<SmsPayload[]>([]);
   const [search, setSearch] = useState('');
+
+  const refreshPairing = useCallback(async () => {
+    const p = await window.smsForwarder.getPairing();
+    setPairing({
+      host: p.host,
+      port: p.port,
+      pairingQr: p.pairingQr,
+      deviceName: p.deviceName,
+    });
+    setPairedPhones(p.pairedPhones);
+    setQrDataUrl(await QRCode.toDataURL(p.pairingQr, { margin: 1, width: 240 }));
+  }, []);
 
   const refreshSenders = useCallback(async () => {
     const list = await window.smsForwarder.listSenders();
@@ -42,18 +59,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    window.smsForwarder.getPairing().then(async (p) => {
-      setPairing(p);
-      setQrDataUrl(await QRCode.toDataURL(p.pairingQr, { margin: 1, width: 240 }));
-    });
+    refreshPairing();
     refreshSenders();
-    return window.smsForwarder.onNewMessage((msg) => {
+    window.smsForwarder.getLaunchAtLogin().then(setLaunchAtLogin);
+    const hostTimer = setInterval(refreshPairing, 8000);
+    return () => {
+      clearInterval(hostTimer);
+    };
+  }, [refreshPairing, refreshSenders]);
+
+  useEffect(() => {
+    const offMsg = window.smsForwarder.onNewMessage((msg) => {
       refreshSenders();
-      if (selected === msg.sender) {
-        setThread((prev) => [...prev, msg]);
-      }
+      if (selected === msg.sender) setThread((prev) => [...prev, msg]);
     });
-  }, [refreshSenders, selected]);
+    const offDev = window.smsForwarder.onDevicesChanged(refreshPairing);
+    return () => {
+      offMsg();
+      offDev();
+    };
+  }, [refreshSenders, refreshPairing, selected]);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -83,6 +108,25 @@ export default function App() {
   const onSelectSender = (sender: string) => {
     setSelected(sender);
     loadThread(sender);
+  };
+
+  const onUnpair = async (deviceId: string) => {
+    if (!confirm('确定取消与该手机的配对？该手机将无法再转发短信，直至重新扫码。')) return;
+    setPairedPhones(await window.smsForwarder.unpairDevice(deviceId));
+  };
+
+  const onRegenerate = async () => {
+    if (
+      !confirm(
+        '将生成新的配对密钥并清空已配对手机列表。已配对手机需重新扫码，是否继续？',
+      )
+    ) {
+      return;
+    }
+    const next = await window.smsForwarder.regeneratePairing();
+    setPairedPhones(next.pairedPhones);
+    setQrDataUrl(await QRCode.toDataURL(next.pairingQr, { margin: 1, width: 240 }));
+    setPairing({ host: next.host, port: next.port, pairingQr: next.pairingQr, deviceName: pairing?.deviceName ?? '我的电脑' });
   };
 
   return (
@@ -117,18 +161,54 @@ export default function App() {
       <main className="main">
         <section className="pairing">
           {qrDataUrl ? <img src={qrDataUrl} alt="配对二维码" /> : null}
-          <div>
+          <div className="pairing-details">
             <p>
-              <strong>手机扫码配对</strong>（请确保手机与电脑在同一 Wi‑Fi）
+              <strong>手机扫码配对</strong>（同一 Wi‑Fi；IP 变化时手机会自动重新发现）
             </p>
             {pairing ? (
               <p>
-                地址：{pairing.host}:{pairing.port}
+                当前地址：<code>{pairing.host}:{pairing.port}</code>（固定端口，DHCP 换 IP 后仍可用）
               </p>
             ) : null}
-            <p style={{ fontSize: 13, color: '#667085' }}>
-              在 Android 应用中点击「扫码配对」，扫描此二维码即可建立加密连接。
-            </p>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={launchAtLogin}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setLaunchAtLogin(v);
+                  window.smsForwarder.setLaunchAtLogin(v);
+                }}
+              />
+              开机自动启动桌面端
+            </label>
+            <div className="device-panel">
+              <div className="device-panel-head">
+                <strong>已配对手机</strong>
+                <button type="button" className="small" onClick={onRegenerate}>
+                  重新生成配对码
+                </button>
+              </div>
+              {pairedPhones.length === 0 ? (
+                <p className="muted">尚无手机配对；首次转发后会自动出现在此列表。</p>
+              ) : (
+                <ul className="device-list">
+                  {pairedPhones.map((d) => (
+                    <li key={d.deviceId}>
+                      <div>
+                        <div>{d.name}</div>
+                        <div className="muted">
+                          最近在线 {formatTime(d.lastSeenAt)}
+                        </div>
+                      </div>
+                      <button type="button" className="small" onClick={() => onUnpair(d.deviceId)}>
+                        取消配对
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
         <section className="messages">

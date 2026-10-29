@@ -38,6 +38,7 @@ describe('pairing QR', () => {
       host: '192.168.1.10',
       port: 8765,
       secret: generatePairingSecret(),
+      deviceId: 'desktop-test',
     });
     const decoded = decodePairingQr(raw);
     expect(decoded.host).toBe('192.168.1.10');

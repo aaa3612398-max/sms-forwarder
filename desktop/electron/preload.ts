@@ -1,12 +1,30 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { SmsPayload } from '@sms-forwarder/protocol';
+import type { PairedPhoneRecord, SmsPayload } from '@sms-forwarder/protocol';
 
 contextBridge.exposeInMainWorld('smsForwarder', {
-  getPairing: () => ipcRenderer.invoke('pairing:get') as Promise<{
-    host: string;
-    port: number;
-    pairingQr: string;
-  }>,
+  getPairing: () =>
+    ipcRenderer.invoke('pairing:get') as Promise<{
+      host: string;
+      port: number;
+      pairingQr: string;
+      deviceId: string;
+      deviceName: string;
+      pairedPhones: PairedPhoneRecord[];
+    }>,
+  listPairedDevices: () =>
+    ipcRenderer.invoke('pairing:listDevices') as Promise<PairedPhoneRecord[]>,
+  unpairDevice: (deviceId: string) =>
+    ipcRenderer.invoke('pairing:unpair', deviceId) as Promise<PairedPhoneRecord[]>,
+  regeneratePairing: () =>
+    ipcRenderer.invoke('pairing:regenerate') as Promise<{
+      pairingQr: string;
+      host: string;
+      port: number;
+      pairedPhones: PairedPhoneRecord[];
+    }>,
+  getLaunchAtLogin: () => ipcRenderer.invoke('settings:getLaunchAtLogin') as Promise<boolean>,
+  setLaunchAtLogin: (enabled: boolean) =>
+    ipcRenderer.invoke('settings:setLaunchAtLogin', enabled) as Promise<boolean>,
   listSenders: () =>
     ipcRenderer.invoke('messages:listSenders') as Promise<
       { sender: string; lastTimestamp: number; count: number }[]
@@ -20,5 +38,10 @@ contextBridge.exposeInMainWorld('smsForwarder', {
     const listener = (_: unknown, payload: SmsPayload) => cb(payload);
     ipcRenderer.on('message:new', listener);
     return () => ipcRenderer.removeListener('message:new', listener);
+  },
+  onDevicesChanged: (cb: () => void) => {
+    const listener = () => cb();
+    ipcRenderer.on('pairing:devices-changed', listener);
+    return () => ipcRenderer.removeListener('pairing:devices-changed', listener);
   },
 });

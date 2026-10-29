@@ -9,6 +9,7 @@
     "test:protocol": "npm run test -w @sms-forwarder/protocol",
     "test:e2e": "node scripts/e2e-protocol-test.mjs",
     "test:crypto-interop": "node scripts/crypto-interop.test.mjs",
+    "test:discovery": "node scripts/discovery-e2e.test.mjs",
     "build:protocol": "npm run build -w @sms-forwarder/protocol",
     "build:desktop": "npm run build -w sms-forwarder-desktop",
     "build:all": "bash scripts/build-all.sh"
